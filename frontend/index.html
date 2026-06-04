@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es" data-tema="oscuro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trazado de circuitos impresos</title>
+  <link rel="stylesheet" href="/css/estilos.css">
+</head>
+<body>
+  <div class="app">
+
+    <!-- Barra superior  -->
+    <header class="barra-superior">
+      <div class="logo"><span class="marca"></span> PCB Router</div>
+      <div class="nombre-proyecto" id="nombreProyecto" title="Clic para renombrar">
+        proyecto_sin_nombre
+      </div>
+
+      <button class="btn btn-icono" id="btnDeshacer" title="Deshacer">&#8630;</button>
+      <button class="btn btn-icono" id="btnRehacer" title="Rehacer">&#8631;</button>
+
+      <span class="espacio"></span>
+
+      <button class="btn" id="btnImportar" title="Importar JSON o CSV">Importar</button>
+      <button class="btn" id="btnExportJson">JSON</button>
+      <button class="btn" id="btnExportImg">PNG</button>
+      <button class="btn" id="btnExportPdf">PDF</button>
+      <button class="btn btn-primario" id="btnRutear">Trazar rutas</button>
+      <button class="btn btn-icono" id="btnTema" title="Cambiar tema">&#9728;</button>
+
+      <input type="file" id="archivoImport" accept=".json,.csv" hidden>
+    </header>
+
+    <!-- herramientas | canvas | propiedades -->
+    <div class="cuerpo">
+
+      <!-- Barra lateral de herramientas -->
+      <aside class="herramientas">
+        <button class="herramienta activa" id="herrSeleccion" title="Seleccionar">&#9737;</button>
+        <button class="herramienta" id="herrComponente" title="Colocar componente">&#9635;</button>
+        <button class="herramienta" id="herrConexion" title="Crear conexion">&#10138;</button>
+        <button class="herramienta" id="herrAjustar" title="Ajustar vista">&#9783;</button>
+      </aside>
+
+      <!-- Area central -->
+      <main class="area-canvas" id="areaCanvas">
+        <canvas id="canvas"></canvas>
+        <div class="coordenadas" id="coordenadas">X: 0, Y: 0</div>
+        <div class="controles-zoom">
+          <button id="zoomMenos" title="Alejar">&#8722;</button>
+          <button id="zoomReset" title="Restablecer">&#9711;</button>
+          <button id="zoomMas" title="Acercar">&#43;</button>
+        </div>
+      </main>
+
+      <!-- Panel derecho -->
+      <aside class="panel" id="panel">
+
+        <div class="seccion">
+          <h2>Placa</h2>
+          <div class="fila">
+            <div class="campo">
+              <label>Filas</label>
+              <input type="number" id="inpFilas" value="30" min="2" max="1000">
+            </div>
+            <div class="campo">
+              <label>Columnas</label>
+              <input type="number" id="inpColumnas" value="30" min="2" max="1000">
+            </div>
+          </div>
+          <div class="campo">
+            <label>Tamano de celda (px)</label>
+            <input type="number" id="inpTamCelda" value="22" min="6" max="60">
+          </div>
+          <button class="btn" id="btnAplicarPlaca" style="width:100%">Aplicar placa</button>
+        </div>
+
+        <div class="seccion">
+          <h2>Algoritmo</h2>
+          <div class="campo">
+            <select id="selAlgoritmo">
+              <option value="astar">A* (A astar)</option>
+              <option value="dijkstra">Dijkstra</option>
+              <option value="bfs">BFS (anchura)</option>
+            </select>
+          </div>
+          <label style="font-size:12px;color:var(--texto-suave);display:flex;gap:6px;align-items:center">
+            <input type="checkbox" id="chkEvitarPistas" checked style="width:auto">
+            Evitar cruces de pistas
+          </label>
+        </div>
+
+        <div class="seccion">
+          <h2>Componente nuevo</h2>
+          <div class="campo">
+            <label>ID</label>
+            <input type="text" id="inpCompId" placeholder="R1">
+          </div>
+          <div class="campo">
+            <label>Nombre</label>
+            <input type="text" id="inpCompNombre" placeholder="Resistencia 1">
+          </div>
+          <div class="fila">
+            <div class="campo">
+              <label>Tipo</label>
+              <select id="inpCompTipo">
+                <option value="resistencia">Resistencia</option>
+                <option value="capacitor">Capacitor</option>
+                <option value="led">LED</option>
+                <option value="microcontrolador">Microcontrolador</option>
+                <option value="diodo">Diodo</option>
+                <option value="transistor">Transistor</option>
+                <option value="conector">Conector</option>
+                <option value="integrado">Integrado</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+            <div class="campo">
+              <label>Color</label>
+              <input type="color" id="inpCompColor" value="#3b82f6" style="height:34px;padding:2px">
+            </div>
+          </div>
+          <div class="fila">
+            <div class="campo"><label>X</label><input type="number" id="inpCompX" value="0" min="0"></div>
+            <div class="campo"><label>Y</label><input type="number" id="inpCompY" value="0" min="0"></div>
+          </div>
+          <div class="fila">
+            <div class="campo"><label>Ancho</label><input type="number" id="inpCompAncho" value="1" min="1"></div>
+            <div class="campo"><label>Alto</label><input type="number" id="inpCompAlto" value="1" min="1"></div>
+          </div>
+          <button class="btn btn-primario" id="btnAgregarComp" style="width:100%">Agregar componente</button>
+        </div>
+
+        <div class="seccion">
+          <h2>Componentes</h2>
+          <div class="lista" id="listaComponentes"></div>
+        </div>
+
+        <div class="seccion">
+          <h2>Nueva conexion</h2>
+          <div class="fila">
+            <div class="campo"><label>Origen</label><select id="selOrigen"></select></div>
+            <div class="campo"><label>Destino</label><select id="selDestino"></select></div>
+          </div>
+          <button class="btn" id="btnAgregarConexion" style="width:100%">Agregar conexion</button>
+        </div>
+
+        <div class="seccion">
+          <h2>Conexiones</h2>
+          <div class="lista" id="listaConexiones"></div>
+        </div>
+
+        <div class="seccion">
+          <h2>Estadisticas</h2>
+          <div class="stats-grid" id="statsGrid">
+            <div class="stat"><div class="valor" id="stComp">0</div><div class="etiqueta">Componentes</div></div>
+            <div class="stat"><div class="valor" id="stConex">0</div><div class="etiqueta">Conexiones OK</div></div>
+            <div class="stat"><div class="valor" id="stLong">0</div><div class="etiqueta">Long. promedio</div></div>
+            <div class="stat"><div class="valor" id="stTiempo">0</div><div class="etiqueta">Tiempo prom. (ms)</div></div>
+          </div>
+        </div>
+
+        <div class="seccion" id="seccionAvisos" style="display:none">
+          <h2>Avisos</h2>
+          <div class="avisos" id="avisos"></div>
+        </div>
+
+      </aside>
+    </div>
+  </div>
+
+  <!-- Modal de renombrar -->
+  <div class="modal-fondo" id="modalRenombrar">
+    <div class="modal">
+      <h3>Renombrar proyecto</h3>
+      <input type="text" id="inpNuevoNombre" placeholder="Nombre del proyecto">
+      <div class="modal-acciones">
+        <button class="btn" id="btnCancelarNombre">Cancelar</button>
+        <button class="btn btn-primario" id="btnGuardarNombre">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/canvas.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

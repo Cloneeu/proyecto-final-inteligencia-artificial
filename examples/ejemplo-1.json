@@ -1,0 +1,70 @@
+{
+  "nombre": "proyecto_sin_nombre",
+  "placa": {
+    "filas": 30,
+    "columnas": 30,
+    "tamano_celda": 20
+  },
+  "componentes": [
+    {
+      "id": "ESP-32",
+      "nombre": "Microcontrolador ESP-32",
+      "tipo": "microcontrolador",
+      "x": 15,
+      "y": 12,
+      "ancho": 3,
+      "alto": 8,
+      "color": "#f7573b"
+    },
+    {
+      "id": "C2",
+      "nombre": "C2",
+      "tipo": "resistencia",
+      "x": 22,
+      "y": 4,
+      "ancho": 1,
+      "alto": 1,
+      "color": "#f7573b"
+    },
+    {
+      "id": "C4",
+      "nombre": "C4",
+      "tipo": "led",
+      "x": 7,
+      "y": 7,
+      "ancho": 1,
+      "alto": 1,
+      "color": "#f7573b"
+    }
+  ],
+  "conexiones": [
+    {
+      "source": "ESP-32",
+      "target": "C2"
+    },
+    {
+      "source": "C4",
+      "target": "ESP-32"
+    },
+    {
+      "source": "ESP-32",
+      "target": "C4"
+    },
+    {
+      "source": "ESP-32",
+      "target": "C4"
+    },
+    {
+      "source": "ESP-32",
+      "target": "C4"
+    },
+    {
+      "source": "C4",
+      "target": "ESP-32"
+    },
+    {
+      "source": "C2",
+      "target": "ESP-32"
+    }
+  ]
+}
