@@ -5,24 +5,38 @@ electrónicos sobre una placa de circuito impreso. El sistema coloca componentes
 en una cuadrícula, define conexiones entre ellos y calcula trayectorias óptimas
 evitando obstáculos y cruces, usando tres algoritmos de búsqueda de caminos.
 
-La interfaz está inspirada en software EDA profesional (KiCad, EasyEDA) e incluye
+La interfaz está inspirada en software profesional KiCad e incluye
 modo claro y oscuro, zoom, desplazamiento, estadísticas y exportación a JSON,
 CSV, PNG y PDF.
 
 ---
 
+## Equipo BETA:
+
+- Alexandro Vega Ramírez
+- Alondra Jacqueline González Corona
+- Mauricio Betancourt Chabolla
+- Yoed Gutierrez Velarde
+
+---
+
 ## ejecucion 
+
+Se debe estar adentro de la carpeta del proyecto en una terminal, y ejecutar:
 
 **Windows**
 
 ```bat
-cd pcb_router
-iniciar.bat
+.\iniciar.bat
+```
+
+**Linux o Mac**
+
+```bat
+./iniciar.sh
 ```
 
 depues abrir "http://localhost:8000"
-
-
 
 ## Cómo se usa
 
@@ -90,15 +104,10 @@ tiempo de cálculo en el panel de estadísticas.
 - Si una conexión no tiene camino posible, se reporta como conexion fallida y aparece
   un aviso pero no detiene el trazado del resto.
 
-
-
 ## Limitaciones conocidas
 
 - El estado del proyecto se mantiene **en memoria** del servidor. Al reiniciar
   el servidor se pierde, por eso conviene exportar a JSON para guardar.
-- El trazado usa una sola capa. No modela vías ni múltiples capas de cobre.
+- El trazado usa una sola capa. No modela vías ni múltiples capas de cobre, lamentablemente.
 - El movimiento es ortogonal por defecto; las diagonales a 45° son opcionales
   (casilla "Permitir 45°").
-
-Estas decisiones mantienen el proyecto claro y enfocado; ampliarlo a varias
-capas o a guardado en disco es un siguiente paso natural.
