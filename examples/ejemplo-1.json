@@ -1,5 +1,5 @@
 {
-  "nombre": "proyecto_sin_nombre",
+  "nombre": "ejemplo-1",
   "placa": {
     "filas": 30,
     "columnas": 30,
@@ -7,64 +7,195 @@
   },
   "componentes": [
     {
-      "id": "ESP-32",
-      "nombre": "Microcontrolador ESP-32",
-      "tipo": "microcontrolador",
-      "x": 15,
-      "y": 12,
-      "ancho": 3,
-      "alto": 8,
-      "color": "#f7573b"
+      "id": "C1",
+      "nombre": "C1",
+      "tipo": "resistencia",
+      "x": 7,
+      "y": 6,
+      "ancho": 1,
+      "alto": 1,
+      "color": "#3b82f6",
+      "pines": 2
     },
     {
       "id": "C2",
       "nombre": "C2",
       "tipo": "resistencia",
-      "x": 22,
-      "y": 4,
+      "x": 20,
+      "y": 6,
       "ancho": 1,
       "alto": 1,
-      "color": "#f7573b"
+      "color": "#3b82f6",
+      "pines": 2
+    },
+    {
+      "id": "C3",
+      "nombre": "C3",
+      "tipo": "resistencia",
+      "x": 7,
+      "y": 10,
+      "ancho": 1,
+      "alto": 1,
+      "color": "#3b82f6",
+      "pines": 2
     },
     {
       "id": "C4",
       "nombre": "C4",
-      "tipo": "led",
-      "x": 7,
-      "y": 7,
+      "tipo": "resistencia",
+      "x": 20,
+      "y": 10,
       "ancho": 1,
       "alto": 1,
-      "color": "#f7573b"
+      "color": "#3b82f6",
+      "pines": 2
+    },
+    {
+      "id": "C5",
+      "nombre": "C5",
+      "tipo": "resistencia",
+      "x": 14,
+      "y": 8,
+      "ancho": 1,
+      "alto": 1,
+      "color": "#3b82f6",
+      "pines": 2
+    },
+    {
+      "id": "C6",
+      "nombre": "C6",
+      "tipo": "microcontrolador",
+      "x": 9,
+      "y": 18,
+      "ancho": 4,
+      "alto": 4,
+      "color": "#3b82f6",
+      "pines": 2
+    },
+    {
+      "id": "C7",
+      "nombre": "C7",
+      "tipo": "microcontrolador",
+      "x": 22,
+      "y": 19,
+      "ancho": 4,
+      "alto": 4,
+      "color": "#3b82f6",
+      "pines": 4
+    },
+    {
+      "id": "C8",
+      "nombre": "C8",
+      "tipo": "conector",
+      "x": 26,
+      "y": 12,
+      "ancho": 4,
+      "alto": 4,
+      "color": "#3b82f6",
+      "pines": 4
+    },
+    {
+      "id": "C9",
+      "nombre": "C9",
+      "tipo": "transistor",
+      "x": 15,
+      "y": 14,
+      "ancho": 2,
+      "alto": 2,
+      "color": "#3b82f6",
+      "pines": 2
     }
   ],
   "conexiones": [
     {
-      "source": "ESP-32",
-      "target": "C2"
+      "source": "C1",
+      "target": "C2",
+      "pin_origen": 1,
+      "pin_destino": 0
     },
     {
-      "source": "C4",
-      "target": "ESP-32"
+      "source": "C3",
+      "target": "C5",
+      "pin_origen": 1,
+      "pin_destino": 0
     },
     {
-      "source": "ESP-32",
-      "target": "C4"
-    },
-    {
-      "source": "ESP-32",
-      "target": "C4"
-    },
-    {
-      "source": "ESP-32",
-      "target": "C4"
-    },
-    {
-      "source": "C4",
-      "target": "ESP-32"
+      "source": "C1",
+      "target": "C5",
+      "pin_origen": 1,
+      "pin_destino": 0
     },
     {
       "source": "C2",
-      "target": "ESP-32"
+      "target": "C5",
+      "pin_origen": 0,
+      "pin_destino": 1
+    },
+    {
+      "source": "C5",
+      "target": "C4",
+      "pin_origen": 1,
+      "pin_destino": 0
+    },
+    {
+      "source": "C2",
+      "target": "C1",
+      "pin_origen": 1,
+      "pin_destino": 0
+    },
+    {
+      "source": "C1",
+      "target": "C3",
+      "pin_origen": 0,
+      "pin_destino": 0
+    },
+    {
+      "source": "C2",
+      "target": "C4",
+      "pin_origen": 1,
+      "pin_destino": 1
+    },
+    {
+      "source": "C4",
+      "target": "C5",
+      "pin_origen": 0,
+      "pin_destino": 1
+    },
+    {
+      "source": "C4",
+      "target": "C8",
+      "pin_origen": 1,
+      "pin_destino": 0
+    },
+    {
+      "source": "C8",
+      "target": "C7",
+      "pin_origen": 1,
+      "pin_destino": 2
+    },
+    {
+      "source": "C7",
+      "target": "C9",
+      "pin_origen": 0,
+      "pin_destino": 2
+    },
+    {
+      "source": "C9",
+      "target": "C9",
+      "pin_origen": 1,
+      "pin_destino": 0
+    },
+    {
+      "source": "C9",
+      "target": "C6",
+      "pin_origen": 0,
+      "pin_destino": 1
+    },
+    {
+      "source": "C6",
+      "target": "C6",
+      "pin_origen": 1,
+      "pin_destino": 0
     }
   ]
 }
