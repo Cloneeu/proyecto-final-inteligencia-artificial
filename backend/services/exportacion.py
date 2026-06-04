@@ -15,6 +15,7 @@ from reportlab.platypus import (
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 from models.schemas import Componente, Conexion
+from services.ruteo import pines_de
 
 
 # utilidad de color
@@ -164,20 +165,21 @@ def _dibujar_simbolo(d, comp, x, y, w, h, g, fuente, oscuro):
 
 
 def _dibujar_footprint(d, comp, x, y, w, h, tamano_celda, fuente):
-    """Footprint para la vista PCB: pads dorados y contorno de serigrafia."""
+    """Contorno de serigrafia para la vista PCB (los pads se dibujan en las patitas)."""
     blanco = (232, 238, 242)
-    cobre = (217, 164, 65)
     d.rectangle([x + 2, y + 2, x + w - 2, y + h - 2], outline=blanco,
                 width=max(1, tamano_celda // 12))
-    # un pad por cada celda que ocupa el componente
-    for fila in range(comp.alto):
-        for col in range(comp.ancho):
-            px = x + col * tamano_celda + tamano_celda // 2
-            py = y + fila * tamano_celda + tamano_celda // 2
-            rp = max(2, int(tamano_celda * 0.28))
-            d.ellipse([px - rp, py - rp, px + rp, py + rp], fill=cobre)
     if fuente is not None:
         d.text((x + 3, y + 2), comp.id, fill=blanco, font=fuente)
+
+
+def _dibujar_pines(d, comp, margen, tamano_celda, color, radio_factor):
+    """Dibuja un punto por cada patita en su celda de ruteo (espejo del canvas)."""
+    for (cx, cy) in pines_de(comp):
+        px = margen + cx * tamano_celda + tamano_celda // 2
+        py = margen + cy * tamano_celda + tamano_celda // 2
+        r = max(2, int(tamano_celda * radio_factor))
+        d.ellipse([px - r, py - r, px + r, py + r], fill=color)
 
 
 # png
@@ -246,8 +248,13 @@ def generar_imagen(filas: int, columnas: int, tamano_celda: int,
         h = comp.alto * tamano_celda
         if modo_pcb:
             _dibujar_footprint(dibujo, comp, x0, y0, w, h, tamano_celda, fuente)
+            # pads dorados sobre las patitas
+            _dibujar_pines(dibujo, comp, margen, tamano_celda, (217, 164, 65), 0.28)
         else:
             _dibujar_simbolo(dibujo, comp, x0, y0, w, h, grosor, fuente, modo_oscuro)
+            # puntos de las patitas, del color del componente
+            _dibujar_pines(dibujo, comp, margen, tamano_celda,
+                           _hex_a_rgb(comp.color), 0.16)
 
     buffer = io.BytesIO()
     img.save(buffer, format="PNG")
@@ -367,15 +374,17 @@ def exportar_csv(componentes: List[Componente],
     salida = io.StringIO()
     escritor = csv.writer(salida)
     escritor.writerow(["seccion", "campo1", "campo2", "campo3",
-                       "campo4", "campo5", "campo6", "campo7"])
+                       "campo4", "campo5", "campo6", "campo7", "campo8"])
     escritor.writerow(["#COMPONENTES", "id", "nombre", "tipo",
-                       "x", "y", "ancho", "alto/color"])
+                       "x", "y", "ancho", "color", "pines"])
     for c in componentes:
         escritor.writerow(["COMPONENTE", c.id, c.nombre, c.tipo,
-                           c.x, c.y, c.ancho, c.color])
-    escritor.writerow(["#CONEXIONES", "source", "target", "", "", "", "", ""])
+                           c.x, c.y, c.ancho, c.color, c.pines])
+    escritor.writerow(["#CONEXIONES", "source", "target",
+                       "pin_origen", "pin_destino", "", "", "", ""])
     for cx in conexiones:
-        escritor.writerow(["CONEXION", cx.source, cx.target, "", "", "", "", ""])
+        escritor.writerow(["CONEXION", cx.source, cx.target,
+                           cx.pin_origen, cx.pin_destino, "", "", "", ""])
     return salida.getvalue().encode("utf-8")
 
 
@@ -404,7 +413,14 @@ def importar_csv(contenido: bytes) -> Dict:
                 "x": int(fila[4]), "y": int(fila[5]),
                 "ancho": int(fila[6]) if fila[6] else 1,
                 "color": fila[7] if len(fila) > 7 and fila[7] else "#3b82f6",
+                # 'pines' es nuevo: si el CSV es viejo y no lo trae, usamos 2
+                "pines": int(fila[8]) if len(fila) > 8 and fila[8] else 2,
             })
         elif marca == "CONEXION":
-            conexiones.append({"source": fila[1], "target": fila[2]})
+            # pin_origen/pin_destino son nuevos: respaldo a 0 si faltan
+            conexiones.append({
+                "source": fila[1], "target": fila[2],
+                "pin_origen": int(fila[3]) if len(fila) > 3 and fila[3] else 0,
+                "pin_destino": int(fila[4]) if len(fila) > 4 and fila[4] else 0,
+            })
     return {"componentes": componentes, "conexiones": conexiones}

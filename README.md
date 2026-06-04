@@ -33,9 +33,12 @@ depues abrir "http://localhost:8000"
    - Eligiendo la herramienta de componente (icono cuadrado en la barra
      izquierda) y haciendo clic sobre la cuadrícula.
    - Importando un archivo JSON o CSV con el botón "Importar".
-3. **Define conexiones** entre componentes con los selectores de origen/destino,
-   o con la herramienta de conexión (haz clic en el componente origen y luego en
-   el destino).
+3. **Define conexiones entre patitas**. Cada componente muestra sus patitas
+   (terminales) como puntos en el borde, según su tipo: resistencia/capacitor/
+   diodo/LED = 2, transistor = 3, y microcontrolador/integrado/conector usan el
+   campo "N° de patitas" del formulario. Conéctalas con la herramienta de conexión
+   (clic en la patita de origen y luego en la de destino) o con los selectores de
+   origen/destino y patita del panel derecho.
 4. **Elige el algoritmo** (A*, Dijkstra o BFS), activa **"Permitir 45°"** si
    quieres pistas diagonales, y pulsa **"Trazar rutas"**. Verás la animación de
    exploración y luego las pistas finales.

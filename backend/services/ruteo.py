@@ -3,7 +3,7 @@
 from typing import List, Tuple, Dict
 
 from algorithms import resolver
-from algorithms.grid import Cuadricula
+from algorithms.grid import Cuadricula, CELDA_LIBRE, CELDA_OCUPADA
 from models.schemas import Componente, Conexion, ResultadoRuta
 
 
@@ -14,36 +14,56 @@ _PALETA = [
 ]
 
 
-def _centro_componente(comp: Componente) -> Tuple[int, int]:
-    """Devuelve la celda central aproximada de un componente."""
-    cx = comp.x + comp.ancho // 2
-    cy = comp.y + comp.alto // 2
+def pines_de(comp: Componente) -> List[Tuple[int, int]]:
+    """
+    Devuelve la celda de ruteo de cada patita del componente, en orden de indice.
+
+    Las celdas quedan JUSTO AFUERA del borde del componente para que la pista
+    salga limpia y funcione incluso con componentes de 1x1. Esta misma regla se
+    replica en el frontend (canvas.js) para que dibujo y ruteo coincidan.
+    """
+    x, y, w, h = comp.x, comp.y, comp.ancho, comp.alto
+    mid_y = y + h // 2
+    mid_x = x + w // 2
+    tipo = comp.tipo
+
+    if tipo == "transistor":
+        # base a la izquierda, colector arriba-derecha, emisor abajo-derecha.
+        # max(1, h-1) evita que colector y emisor caigan en la misma celda si h=1.
+        return [(x - 1, mid_y), (x + w, y), (x + w, y + max(1, h - 1))]
+
+    if tipo in ("microcontrolador", "integrado"):
+        # pines repartidos en los dos lados, estilo DIP
+        n = max(2, comp.pines)
+        k = (n + 1) // 2          # mitad (o una mas) en el lado izquierdo
+        celdas = []
+        for i in range(k):        # lado izquierdo, arriba -> abajo
+            fila = y + min(h - 1, int((i + 0.5) * h / k))
+            celdas.append((x - 1, fila))
+        der = n - k
+        for i in range(der):      # lado derecho, arriba -> abajo
+            fila = y + min(h - 1, int((i + 0.5) * h / der))
+            celdas.append((x + w, fila))
+        return celdas
+
+    if tipo == "conector":
+        # pines en una fila debajo del componente
+        n = max(2, comp.pines)
+        celdas = []
+        for i in range(n):
+            col = x + min(w - 1, int((i + 0.5) * w / n))
+            celdas.append((col, y + h))
+        return celdas
+
+    # resistencia, capacitor, diodo, led y "otro": 2 patitas izquierda/derecha
+    return [(x - 1, mid_y), (x + w, mid_y)]
+
+
+def _celda_en_placa(celda: Tuple[int, int], grid: Cuadricula) -> Tuple[int, int]:
+    """Recorta una celda para que quede dentro de la placa (por si un pin cae fuera)."""
+    cx = max(0, min(grid.columnas - 1, celda[0]))
+    cy = max(0, min(grid.filas - 1, celda[1]))
     return cx, cy
-
-
-def _celdas_componente(comp: Componente) -> List[Tuple[int, int]]:
-    """Lista todas las celdas que ocupa un componente."""
-    celdas = []
-    for fila in range(comp.y, comp.y + comp.alto):
-        for col in range(comp.x, comp.x + comp.ancho):
-            celdas.append((col, fila))
-    return celdas
-
-
-def _celdas_a_liberar(origen: Componente, destino: Componente,
-                      grid: Cuadricula) -> set:
-
-    liberar = set()
-    for comp in (origen, destino):
-        for (cx, cy) in _celdas_componente(comp):
-            if grid.dentro_de_limites(cx, cy):
-                liberar.add((cx, cy))
-            # Borde alrededor de la celda
-            for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
-                nx, ny = cx + dx, cy + dy
-                if grid.dentro_de_limites(nx, ny):
-                    liberar.add((nx, ny))
-    return liberar
 
 
 def construir_cuadricula(filas: int, columnas: int,
@@ -63,6 +83,15 @@ def trazar_conexiones(filas: int, columnas: int,
 
     grid = construir_cuadricula(filas, columnas, componentes)
     indice = {c.id: c for c in componentes}
+
+    # Todas las celdas de patita de todos los componentes. Se calculan una sola
+    # vez porque no cambian entre conexiones. Al trazar cada pista las bloqueamos
+    # (menos las dos patitas extremo) para que ninguna pista pase sobre una patita
+    # ajena.
+    todas_las_patitas = set()
+    for comp in componentes:
+        for celda in pines_de(comp):
+            todas_las_patitas.add(_celda_en_placa(celda, grid))
 
     resultados: List[ResultadoRuta] = []
     advertencias: List[str] = []
@@ -88,15 +117,36 @@ def trazar_conexiones(filas: int, columnas: int,
             )
             continue
 
-        inicio = _centro_componente(origen)
-        fin = _centro_componente(destino)
+        # Tomamos la celda de cada patita elegida (validando el indice)
+        pines_origen = pines_de(origen)
+        pines_destino = pines_de(destino)
+        if (conexion.pin_origen >= len(pines_origen) or
+                conexion.pin_destino >= len(pines_destino)):
+            resultados.append(ResultadoRuta(
+                source=conexion.source, target=conexion.target,
+                exito=False, mensaje="Patita inexistente en el componente",
+            ))
+            advertencias.append(
+                f"Conexion {conexion.source}.{conexion.pin_origen}->"
+                f"{conexion.target}.{conexion.pin_destino}: patita inexistente"
+            )
+            continue
 
-       
-        celdas_liberadas = _celdas_a_liberar(origen, destino, grid)
+        inicio = _celda_en_placa(pines_origen[conexion.pin_origen], grid)
+        fin = _celda_en_placa(pines_destino[conexion.pin_destino], grid)
+
+        # Preparamos la cuadricula para esta conexion:
+        #  - bloqueamos todas las patitas ajenas (para que la pista no pase sobre
+        #    el punto de conexion de otro componente),
+        #  - liberamos las dos patitas extremo (inicio y fin) para poder salir/llegar.
         respaldo = {}
-        for (cx, cy) in celdas_liberadas:
+        for (cx, cy) in todas_las_patitas - {inicio, fin}:
             respaldo[(cx, cy)] = grid.celdas[cy][cx]
-            grid.celdas[cy][cx] = 0
+            grid.celdas[cy][cx] = CELDA_OCUPADA
+        for (cx, cy) in (inicio, fin):
+            if (cx, cy) not in respaldo:
+                respaldo[(cx, cy)] = grid.celdas[cy][cx]
+            grid.celdas[cy][cx] = CELDA_LIBRE
 
         res = resolver(algoritmo, grid, inicio, fin, evitar_pistas,
                        permitir_diagonales)

@@ -97,12 +97,12 @@ class Cuadricula:
             nx, ny = x + dx, y + dy
             if not self.es_transitable(nx, ny, evitar_pistas):
                 continue
-            # Evitamos "cortar esquinas": la diagonal solo vale si al menos una
-            # de las dos celdas ortogonales contiguas esta libre. Asi la pista
-            # no atraviesa la esquina de un componente.
+            # Evitamos "cortar esquinas": la diagonal solo vale si LAS DOS celdas
+            # ortogonales contiguas estan libres. Asi la pista no pasa pegada a la
+            # esquina de un componente.
             libre_h = self.es_transitable(x + dx, y, evitar_pistas)
             libre_v = self.es_transitable(x, y + dy, evitar_pistas)
-            if libre_h or libre_v:
+            if libre_h and libre_v:
                 yield nx, ny, 1.4142135623730951
 
     def clonar_estado(self) -> List[List[int]]:

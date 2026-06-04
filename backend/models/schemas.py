@@ -27,12 +27,22 @@ class Componente(BaseModel):
     ancho: int = Field(default=1, ge=1, description="Ancho en celdas")
     alto: int = Field(default=1, ge=1, description="Alto en celdas")
     color: str = Field(default="#3b82f6", description="Color identificador en hex")
+    pines: int = Field(
+        default=2, ge=1, le=64,
+        description="Numero de patitas. Solo lo usan micro/integrado/conector; "
+                    "los demas tipos tienen un numero fijo por su simbolo."
+    )
 
 
 class Conexion(BaseModel):
-    """Conexion (net) entre dos componentes identificados por su ID."""
+    """
+    Conexion (net) entre dos patitas. source/target dicen a que componente
+    pertenece cada patita, y pin_origen/pin_destino el indice de la patita.
+    """
     source: str = Field(..., description="ID del componente origen")
     target: str = Field(..., description="ID del componente destino")
+    pin_origen: int = Field(default=0, ge=0, description="Indice de la patita origen")
+    pin_destino: int = Field(default=0, ge=0, description="Indice de la patita destino")
 
 
 class ConfiguracionPlaca(BaseModel):

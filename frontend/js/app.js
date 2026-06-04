@@ -50,14 +50,19 @@ document.addEventListener("DOMContentLoaded", () => {
       $("inpCompY").value = celda.y;
       await agregarComponenteDesdeFormulario(true);
     } else if (herramienta === "conexion") {
-      const comp = componenteEnCelda(celda);
-      if (!comp) return;
+      // Ahora conectamos patitas: buscamos la patita mas cercana al clic
+      const pin = Lienzo.pinEnCelda(celda);
+      if (!pin) return;
       if (!conexionParcial) {
-        conexionParcial = comp.id;
-        avisar(`Origen: ${comp.id}. Elige el destino.`);
-      } else if (conexionParcial !== comp.id) {
-        await crearConexion(conexionParcial, comp.id);
+        conexionParcial = pin;
+        Lienzo.setPinSeleccionado(pin);
+        avisar(`Origen: ${pin.compId} · patita ${pin.idx + 1}. Elige la patita destino.`);
+      } else if (conexionParcial.compId !== pin.compId ||
+                 conexionParcial.idx !== pin.idx) {
+        await crearConexion(conexionParcial.compId, pin.compId,
+                            conexionParcial.idx, pin.idx);
         conexionParcial = null;
+        Lienzo.setPinSeleccionado(null);
       }
     }
   });
@@ -81,6 +86,7 @@ document.addEventListener("DOMContentLoaded", () => {
       $(id).classList.add("activa");
       herramienta = mapaHerr[id];
       conexionParcial = null;
+      Lienzo.setPinSeleccionado(null);
     });
   });
   $("herrAjustar").addEventListener("click", () => Lienzo.ajustar());
@@ -150,6 +156,7 @@ document.addEventListener("DOMContentLoaded", () => {
       ancho: parseInt($("inpCompAncho").value, 10) || 1,
       alto: parseInt($("inpCompAlto").value, 10) || 1,
       color: $("inpCompColor").value,
+      pines: parseInt($("inpCompPines").value, 10) || 2,
     };
     try {
       await API.crearComponente(comp);
@@ -178,19 +185,39 @@ document.addEventListener("DOMContentLoaded", () => {
     actualizarStatsBasicas();
   }
 
-  // conexiones
-  async function crearConexion(source, target) {
+  // conexiones (entre patitas)
+  async function crearConexion(source, target, pinOrigen = 0, pinDestino = 0) {
     try {
-      await API.crearConexion({ source, target });
+      await API.crearConexion({
+        source, target, pin_origen: pinOrigen, pin_destino: pinDestino,
+      });
       await recargarComponentesYConexiones();
-      avisar(`Conexion ${source} -> ${target} agregada`);
+      avisar(`Conexion ${source}·${pinOrigen + 1} -> ${target}·${pinDestino + 1} agregada`);
     } catch (e) { avisar(e.message, true); }
   }
+
+  // Llena un selector de patitas (1..n) segun el componente elegido
+  function llenarPinesDeSelect(selComp, selPin) {
+    const comp = componentes.find((c) => c.id === selComp.value);
+    selPin.innerHTML = "";
+    if (!comp) return;
+    const n = Lienzo.pinesDe(comp).length;
+    for (let i = 0; i < n; i++) selPin.appendChild(new Option("Patita " + (i + 1), i));
+  }
+  $("selOrigen").addEventListener("change",
+    () => llenarPinesDeSelect($("selOrigen"), $("selPinOrigen")));
+  $("selDestino").addEventListener("change",
+    () => llenarPinesDeSelect($("selDestino"), $("selPinDestino")));
+
   $("btnAgregarConexion").addEventListener("click", () => {
     const s = $("selOrigen").value, t = $("selDestino").value;
+    const po = parseInt($("selPinOrigen").value, 10) || 0;
+    const pd = parseInt($("selPinDestino").value, 10) || 0;
     if (!s || !t) { avisar("Selecciona origen y destino", true); return; }
-    if (s === t) { avisar("Origen y destino no pueden ser iguales", true); return; }
-    crearConexion(s, t);
+    if (s === t && po === pd) {
+      avisar("Origen y destino no pueden ser la misma patita", true); return;
+    }
+    crearConexion(s, t, po, pd);
   });
 
   // trazado de rutas
@@ -330,6 +357,9 @@ document.addEventListener("DOMContentLoaded", () => {
       so.appendChild(new Option(c.id, c.id));
       sd.appendChild(new Option(c.id, c.id));
     });
+    // Llenamos tambien los selectores de patita segun el componente elegido
+    llenarPinesDeSelect(so, $("selPinOrigen"));
+    llenarPinesDeSelect(sd, $("selPinDestino"));
 
     // Lista de conexiones
     const lcx = $("listaConexiones");
@@ -337,9 +367,11 @@ document.addEventListener("DOMContentLoaded", () => {
     conexiones.forEach((cx) => {
       const div = document.createElement("div");
       div.className = "item";
+      const po = (cx.pin_origen ?? 0) + 1;
+      const pd = (cx.pin_destino ?? 0) + 1;
       div.innerHTML = `
         <span class="info">
-          <span class="id">${cx.source} &rarr; ${cx.target}</span>
+          <span class="id">${cx.source}&middot;${po} &rarr; ${cx.target}&middot;${pd}</span>
         </span>`;
       lcx.appendChild(div);
     });

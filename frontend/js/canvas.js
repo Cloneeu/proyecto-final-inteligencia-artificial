@@ -7,6 +7,7 @@ const Lienzo = (() => {
   let rutas = [];            // resultados del ultimo ruteo
   let temaOscuro = true;
   let modoPCB = false;       // false = vista esquematica, true = vista placa real
+  let pinSeleccionado = null; // patita de origen al crear una conexion {compId, idx}
 
   // Transformacion de vista
   let escala = 1;
@@ -134,7 +135,81 @@ const Lienzo = (() => {
       } else {
         dibujarSimbolo(comp.tipo, x, y, cw, ch, tc, comp);
       }
+      dibujarPines(comp, tc);
     });
+  }
+
+  // Dibuja un punto por cada patita del componente (pad dorado en modo PCB)
+  function dibujarPines(comp, tc) {
+    const radio = modoPCB ? Math.max(2, tc * 0.28) : Math.max(2, tc * 0.16);
+    const color = modoPCB ? "#d9a441" : (comp.color || "#3b82f6");
+    pinesDe(comp).forEach((p, idx) => {
+      const px = offsetX + p.cx * tc + tc / 2;
+      const py = offsetY + p.cy * tc + tc / 2;
+      ctx.beginPath();
+      ctx.arc(px, py, radio, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      // Resaltamos la patita de origen elegida para la conexion
+      if (pinSeleccionado &&
+          pinSeleccionado.compId === comp.id && pinSeleccionado.idx === idx) {
+        ctx.strokeStyle = "#ef4444";
+        ctx.lineWidth = Math.max(1.5, tc * 0.1);
+        ctx.beginPath();
+        ctx.arc(px, py, radio + Math.max(2, tc * 0.14), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    });
+  }
+
+  // Calcula las celdas de ruteo de las patitas (misma regla que el backend)
+  function pinesDe(comp) {
+    const x = comp.x, y = comp.y, w = comp.ancho || 1, h = comp.alto || 1;
+    const midY = y + Math.floor(h / 2);
+    const tipo = comp.tipo;
+
+    if (tipo === "transistor") {
+      return [{ cx: x - 1, cy: midY }, { cx: x + w, cy: y },
+              { cx: x + w, cy: y + Math.max(1, h - 1) }];
+    }
+    if (tipo === "microcontrolador" || tipo === "integrado") {
+      const n = Math.max(2, comp.pines || 2);
+      const k = Math.floor((n + 1) / 2);   // mitad (o una mas) a la izquierda
+      const pines = [];
+      for (let i = 0; i < k; i++) {
+        const fila = y + Math.min(h - 1, Math.floor((i + 0.5) * h / k));
+        pines.push({ cx: x - 1, cy: fila });
+      }
+      const der = n - k;
+      for (let i = 0; i < der; i++) {
+        const fila = y + Math.min(h - 1, Math.floor((i + 0.5) * h / der));
+        pines.push({ cx: x + w, cy: fila });
+      }
+      return pines;
+    }
+    if (tipo === "conector") {
+      const n = Math.max(2, comp.pines || 2);
+      const pines = [];
+      for (let i = 0; i < n; i++) {
+        const col = x + Math.min(w - 1, Math.floor((i + 0.5) * w / n));
+        pines.push({ cx: col, cy: y + h });
+      }
+      return pines;
+    }
+    // resistencia, capacitor, diodo, led y "otro": 2 patitas izquierda/derecha
+    return [{ cx: x - 1, cy: midY }, { cx: x + w, cy: midY }];
+  }
+
+  // Devuelve la patita mas cercana a la celda clicada, o null si esta lejos
+  function pinEnCelda(celda) {
+    let mejor = null, mejorDist = Infinity;
+    componentes.forEach((comp) => {
+      pinesDe(comp).forEach((p, idx) => {
+        const d = Math.max(Math.abs(p.cx - celda.x), Math.abs(p.cy - celda.y));
+        if (d < mejorDist) { mejorDist = d; mejor = { compId: comp.id, idx }; }
+      });
+    });
+    return mejorDist <= 1 ? mejor : null;
   }
 
   // ------------------------------------------------------------------
@@ -318,24 +393,12 @@ const Lienzo = (() => {
     ctx.stroke();
   }
 
-  // Footprint para la vista PCB: pads de cobre y contorno de serigrafia
+  // Footprint para la vista PCB: contorno de serigrafia (los pads van en las patitas)
   function dibujarFootprint(x, y, w, h, tc, comp) {
     // contorno blanco de serigrafia
     ctx.strokeStyle = "#e8eef2";
     ctx.lineWidth = Math.max(1, tc * 0.08);
     ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
-    // un pad dorado por cada celda que ocupa el componente
-    const ancho = comp.ancho || 1, alto = comp.alto || 1;
-    ctx.fillStyle = "#d9a441";
-    for (let fila = 0; fila < alto; fila++) {
-      for (let col = 0; col < ancho; col++) {
-        const px = x + col * tc + tc / 2;
-        const py = y + fila * tc + tc / 2;
-        ctx.beginPath();
-        ctx.arc(px, py, Math.max(2, tc * 0.28), 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
     // etiqueta de serigrafia en blanco
     if (tc > 14) {
       ctx.fillStyle = "#e8eef2";
@@ -451,6 +514,10 @@ const Lienzo = (() => {
     toggleModoPCB: () => { modoPCB = !modoPCB; dibujar(); return modoPCB; },
     setModoPCB: (v) => { modoPCB = v; dibujar(); },
     esModoPCB: () => modoPCB,
+    // Patitas: consulta de cual se clico y resaltado de la patita de origen
+    pinEnCelda: (celda) => pinEnCelda(celda),
+    pinesDe: (comp) => pinesDe(comp),
+    setPinSeleccionado: (pin) => { pinSeleccionado = pin; dibujar(); },
     dibujar,
     ajustar,
     animarExploracion,
