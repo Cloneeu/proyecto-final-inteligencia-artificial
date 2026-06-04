@@ -29,38 +29,201 @@ def _hex_a_rgb(valor: str) -> Tuple[int, int, int]:
         return (59, 130, 246)  # azul por defecto si el color es invalido
 
 
+# ------------------------------------------------------------------
+# Dibujo de simbolos electronicos para la exportacion (espejo del canvas)
+# ------------------------------------------------------------------
+# Estos ayudantes replican con PIL los mismos simbolos que se ven en pantalla,
+# para que la imagen exportada coincida con el esquematico del lienzo.
+RAIZ2 = 1.4142135623730951
+
+
+def _resistencia(d, x, y, w, h, color, g):
+    """Zigzag horizontal con dos terminales."""
+    cy = y + h / 2
+    x0, x1 = x + w * 0.18, x + w * 0.82
+    ancho = x1 - x0
+    amp = h * 0.22
+    picos = 6
+    puntos = [(x, cy), (x0, cy)]
+    for i in range(picos):
+        px = x0 + ancho * (i + 0.5) / picos
+        py = cy + (-amp if i % 2 == 0 else amp)
+        puntos.append((px, py))
+    puntos += [(x1, cy), (x + w, cy)]
+    d.line(puntos, fill=color, width=g, joint="curve")
+
+
+def _capacitor(d, x, y, w, h, color, g):
+    """Dos placas paralelas con terminales."""
+    cy = y + h / 2
+    gap = w * 0.1
+    xa, xb = x + w / 2 - gap, x + w / 2 + gap
+    mitad = h * 0.3
+    d.line([(x, cy), (xa, cy)], fill=color, width=g)
+    d.line([(xb, cy), (x + w, cy)], fill=color, width=g)
+    d.line([(xa, cy - mitad), (xa, cy + mitad)], fill=color, width=g)
+    d.line([(xb, cy - mitad), (xb, cy + mitad)], fill=color, width=g)
+
+
+def _diodo(d, x, y, w, h, color, g, es_led):
+    """Triangulo + barra de catodo. Si es LED agrega flechas de luz."""
+    cy = y + h / 2
+    tx0, tx1 = x + w * 0.32, x + w * 0.64
+    th = h * 0.28
+    d.line([(x, cy), (tx0, cy)], fill=color, width=g)
+    d.line([(tx1, cy), (x + w, cy)], fill=color, width=g)
+    # triangulo apuntando a la derecha
+    d.polygon([(tx0, cy - th), (tx0, cy + th), (tx1, cy)], outline=color, width=g)
+    # barra del catodo
+    d.line([(tx1, cy - th), (tx1, cy + th)], fill=color, width=g)
+    if es_led:
+        ax = x + w * 0.5
+        d.line([(ax, cy - th), (ax + w * 0.12, cy - th - h * 0.24)],
+               fill=color, width=g)
+        d.line([(ax + w * 0.14, cy - th), (ax + w * 0.26, cy - th - h * 0.24)],
+               fill=color, width=g)
+
+
+def _transistor(d, x, y, w, h, color, g):
+    """Circulo con base, colector y emisor."""
+    cx, cy = x + w / 2, y + h / 2
+    r = min(w, h) * 0.32
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=color, width=g)
+    bx = cx - r * 0.35
+    d.line([(x, cy), (bx, cy)], fill=color, width=g)
+    d.line([(bx, cy - r * 0.6), (bx, cy + r * 0.6)], fill=color, width=g)
+    d.line([(bx, cy - r * 0.25), (cx + r * 0.5, cy - r * 0.6),
+            (cx + r * 0.5, y)], fill=color, width=g, joint="curve")
+    d.line([(bx, cy + r * 0.25), (cx + r * 0.5, cy + r * 0.6),
+            (cx + r * 0.5, y + h)], fill=color, width=g, joint="curve")
+
+
+def _chip(d, x, y, w, h, color, g, oscuro):
+    """Cuerpo del chip con patitas y punto del pin 1 (micro/integrado)."""
+    m = min(w, h) * 0.18
+    bx, by, bw, bh = x + m, y + m, w - 2 * m, h - 2 * m
+    cuerpo = (55, 65, 81) if oscuro else (71, 85, 105)
+    d.rectangle([bx, by, bx + bw, by + bh], fill=cuerpo, outline=color, width=g)
+    pin_color = (203, 213, 225) if oscuro else (51, 65, 85)
+    pines = max(2, int(bh / (m * 1.4)))
+    for i in range(pines):
+        py = by + bh * (i + 0.5) / pines
+        d.line([(x, py), (bx, py)], fill=pin_color, width=g)
+        d.line([(bx + bw, py), (x + w, py)], fill=pin_color, width=g)
+    # punto indicador del pin 1
+    rp = max(1.5, m * 0.28)
+    px, py = bx + m * 0.7, by + m * 0.7
+    d.ellipse([px - rp, py - rp, px + rp, py + rp], fill=color)
+
+
+def _conector(d, x, y, w, h, color, g, oscuro):
+    """Cuerpo con una fila de pines."""
+    m = min(w, h) * 0.18
+    relleno = (31, 41, 51) if oscuro else (229, 231, 235)
+    d.rectangle([x + m, y + m, x + w - m, y + h - m],
+                fill=relleno, outline=color, width=g)
+    ancho = w - 2 * m
+    pines = max(2, int(ancho / (m * 1.6)))
+    cy = y + h / 2
+    for i in range(pines):
+        px = x + m + ancho * (i + 0.5) / pines
+        rp = max(1.5, m * 0.3)
+        d.ellipse([px - rp, cy - rp, px + rp, cy + rp], fill=color)
+
+
+def _generico(d, x, y, w, h, color, oscuro):
+    """Rectangulo de color (tipo 'otro')."""
+    borde = (255, 255, 255) if oscuro else (31, 41, 51)
+    d.rectangle([x, y, x + w, y + h], fill=color, outline=borde)
+
+
+def _dibujar_simbolo(d, comp, x, y, w, h, g, fuente, oscuro):
+    """Elige y dibuja el simbolo segun el tipo del componente."""
+    color = _hex_a_rgb(comp.color)
+    tipo = comp.tipo
+    if tipo == "resistencia":
+        _resistencia(d, x, y, w, h, color, g)
+    elif tipo == "capacitor":
+        _capacitor(d, x, y, w, h, color, g)
+    elif tipo == "led":
+        _diodo(d, x, y, w, h, color, g, True)
+    elif tipo == "diodo":
+        _diodo(d, x, y, w, h, color, g, False)
+    elif tipo == "transistor":
+        _transistor(d, x, y, w, h, color, g)
+    elif tipo == "conector":
+        _conector(d, x, y, w, h, color, g, oscuro)
+    elif tipo in ("microcontrolador", "integrado"):
+        _chip(d, x, y, w, h, color, g, oscuro)
+    else:
+        _generico(d, x, y, w, h, color, oscuro)
+    # Etiqueta con el ID
+    if fuente is not None:
+        texto = (229, 231, 235) if oscuro else (31, 41, 51)
+        d.text((x + 3, y + 2), comp.id, fill=texto, font=fuente)
+
+
+def _dibujar_footprint(d, comp, x, y, w, h, tamano_celda, fuente):
+    """Footprint para la vista PCB: pads dorados y contorno de serigrafia."""
+    blanco = (232, 238, 242)
+    cobre = (217, 164, 65)
+    d.rectangle([x + 2, y + 2, x + w - 2, y + h - 2], outline=blanco,
+                width=max(1, tamano_celda // 12))
+    # un pad por cada celda que ocupa el componente
+    for fila in range(comp.alto):
+        for col in range(comp.ancho):
+            px = x + col * tamano_celda + tamano_celda // 2
+            py = y + fila * tamano_celda + tamano_celda // 2
+            rp = max(2, int(tamano_celda * 0.28))
+            d.ellipse([px - rp, py - rp, px + rp, py + rp], fill=cobre)
+    if fuente is not None:
+        d.text((x + 3, y + 2), comp.id, fill=blanco, font=fuente)
+
+
 # png
 def generar_imagen(filas: int, columnas: int, tamano_celda: int,
                    componentes: List[Componente],
                    resultados_ruta: List[Dict],
-                   modo_oscuro: bool = True) -> bytes:
+                   modo_oscuro: bool = True,
+                   modo_pcb: bool = False) -> bytes:
     """
     Dibuja la placa completa y devuelve los bytes PNG.
-    Incluye la cuadricula, los componentes y las pistas trazadas.
+    Incluye la cuadricula, los componentes (como simbolos electronicos) y las
+    pistas. Si `modo_pcb` es True, dibuja la placa real: fondo verde, pistas de
+    cobre y pads dorados con serigrafia.
     """
     margen = 20
     ancho = columnas * tamano_celda + margen * 2
     alto = filas * tamano_celda + margen * 2
 
-    fondo = (30, 30, 30) if modo_oscuro else (248, 250, 252)
+    if modo_pcb:
+        fondo = (11, 110, 61)        # verde mascara de soldadura
+    else:
+        fondo = (30, 30, 30) if modo_oscuro else (248, 250, 252)
     color_grid = (60, 60, 60) if modo_oscuro else (210, 215, 225)
 
     img = Image.new("RGB", (ancho, alto), fondo)
     dibujo = ImageDraw.Draw(img)
 
-    # Cuadricula
-    for col in range(columnas + 1):
-        x = margen + col * tamano_celda
-        dibujo.line([(x, margen), (x, alto - margen)], fill=color_grid, width=1)
-    for fila in range(filas + 1):
-        y = margen + fila * tamano_celda
-        dibujo.line([(margen, y), (ancho - margen, y)], fill=color_grid, width=1)
+    # Cuadricula (se oculta en modo PCB)
+    if not modo_pcb:
+        for col in range(columnas + 1):
+            x = margen + col * tamano_celda
+            dibujo.line([(x, margen), (x, alto - margen)], fill=color_grid, width=1)
+        for fila in range(filas + 1):
+            y = margen + fila * tamano_celda
+            dibujo.line([(margen, y), (ancho - margen, y)], fill=color_grid, width=1)
 
-    # Pistas (se dibujan antes que los componentes para que estos queden encima)
+    # Pistas (antes que los componentes para que estos queden encima)
     for res in resultados_ruta:
         if not res.get("exito"):
             continue
-        color = _hex_a_rgb(res.get("color", "#22c55e"))
+        if modo_pcb:
+            color = (217, 164, 65)               # cobre
+            grosor_pista = max(3, tamano_celda // 3)
+        else:
+            color = _hex_a_rgb(res.get("color", "#22c55e"))
+            grosor_pista = max(2, tamano_celda // 6)
         camino = res.get("camino", [])
         puntos = [
             (margen + cx * tamano_celda + tamano_celda // 2,
@@ -68,22 +231,23 @@ def generar_imagen(filas: int, columnas: int, tamano_celda: int,
             for cx, cy in camino
         ]
         if len(puntos) >= 2:
-            dibujo.line(puntos, fill=color, width=max(2, tamano_celda // 6))
+            dibujo.line(puntos, fill=color, width=grosor_pista, joint="curve")
 
     # Componentes
+    try:
+        fuente = ImageFont.load_default()
+    except Exception:
+        fuente = None
+    grosor = max(2, int(tamano_celda * 0.12))
     for comp in componentes:
         x0 = margen + comp.x * tamano_celda
         y0 = margen + comp.y * tamano_celda
-        x1 = x0 + comp.ancho * tamano_celda
-        y1 = y0 + comp.alto * tamano_celda
-        color = _hex_a_rgb(comp.color)
-        dibujo.rectangle([x0, y0, x1, y1], fill=color, outline=(255, 255, 255))
-        # Etiqueta con el ID
-        try:
-            fuente = ImageFont.load_default()
-            dibujo.text((x0 + 3, y0 + 2), comp.id, fill=(255, 255, 255), font=fuente)
-        except Exception:
-            pass
+        w = comp.ancho * tamano_celda
+        h = comp.alto * tamano_celda
+        if modo_pcb:
+            _dibujar_footprint(dibujo, comp, x0, y0, w, h, tamano_celda, fuente)
+        else:
+            _dibujar_simbolo(dibujo, comp, x0, y0, w, h, grosor, fuente, modo_oscuro)
 
     buffer = io.BytesIO()
     img.save(buffer, format="PNG")

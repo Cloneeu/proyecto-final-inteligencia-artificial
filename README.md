@@ -36,9 +36,20 @@ depues abrir "http://localhost:8000"
 3. **Define conexiones** entre componentes con los selectores de origen/destino,
    o con la herramienta de conexión (haz clic en el componente origen y luego en
    el destino).
-4. **Elige el algoritmo** (A*, Dijkstra o BFS) y pulsa **"Trazar rutas"**.
-   Verás la animación de exploración y luego las pistas finales.
-5. **Exporta** el resultado a JSON, PNG o PDF desde la barra superior.
+4. **Elige el algoritmo** (A*, Dijkstra o BFS), activa **"Permitir 45°"** si
+   quieres pistas diagonales, y pulsa **"Trazar rutas"**. Verás la animación de
+   exploración y luego las pistas finales.
+5. **Exporta** el resultado a JSON, PNG o PDF desde la barra superior. El PNG y el
+   PDF reflejan la vista actual: símbolos electrónicos en esquemático, o placa real
+   (verde, cobre y pads) si tienes activado "Ver PCB".
+6. Pulsa **"Ver PCB"** para alternar el lienzo a una vista de placa real (verde,
+   pistas de cobre y pads). Vuelve a pulsarlo para regresar al esquemático.
+7. Pulsa **"Borrar todo"** para limpiar componentes, conexiones y rutas (la placa
+   conserva su tamaño). Es reversible con "Deshacer".
+
+Cada componente se dibuja con su **símbolo electrónico** según su tipo
+(resistencia, capacitor, microcontrolador, LED, diodo, transistor, conector,
+integrado), así que el esquemático se entiende de un vistazo.
 
 Atajos del lienzo: rueda del ratón para zoom, **Shift + arrastrar** para mover
 la vista, y el botón de ajustar para centrar la placa.
@@ -47,10 +58,15 @@ la vista, y el botón de ajustar para centrar la placa.
 
 ## Algoritmos de trazado
 
-Los tres trabajan sobre la misma cuadrícula con movimiento ortogonal (arriba,
-abajo, izquierda, derecha), que es lo habitual en pistas de PCB. Como el coste
-por celda es uniforme, los tres encuentran el **mismo camino más corto**; lo que
-cambia es cuántas celdas exploran para llegar a él.
+Los tres trabajan sobre la misma cuadrícula. Por defecto el movimiento es
+ortogonal (arriba, abajo, izquierda, derecha), que es lo habitual en pistas de
+PCB. Como el coste por celda es uniforme, los tres encuentran el **mismo camino
+más corto**; lo que cambia es cuántas celdas exploran para llegar a él.
+
+Si activas **"Permitir 45°"**, además se habilitan los movimientos diagonales
+(coste √2). En ese caso A* usa la heurística octágono (octile) para seguir siendo
+óptimo y Dijkstra pondera cada diagonal por su coste real; BFS sigue contando
+cada paso por igual, por lo que puede dar un camino algo más largo.
 
 - **A\*** — Usa la distancia Manhattan como heurística para guiarse hacia el
   destino. Es el más eficiente: explora menos celdas.
@@ -78,7 +94,8 @@ tiempo de cálculo en el panel de estadísticas.
 - El estado del proyecto se mantiene **en memoria** del servidor. Al reiniciar
   el servidor se pierde, por eso conviene exportar a JSON para guardar.
 - El trazado usa una sola capa. No modela vías ni múltiples capas de cobre.
-- El movimiento es ortogonal; no traza pistas en diagonal a 45°.
+- El movimiento es ortogonal por defecto; las diagonales a 45° son opcionales
+  (casilla "Permitir 45°").
 
 Estas decisiones mantienen el proyecto claro y enfocado; ampliarlo a varias
 capas o a guardado en disco es un siguiente paso natural.

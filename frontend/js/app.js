@@ -199,6 +199,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const peticion = {
       algoritmo: $("selAlgoritmo").value,
       evitar_pistas: $("chkEvitarPistas").checked,
+      permitir_diagonales: $("chkDiagonales").checked,
     };
     try {
       avisar("Calculando rutas...");
@@ -221,6 +222,24 @@ document.addEventListener("DOMContentLoaded", () => {
       const e = r.estadisticas;
       avisar(`${e.conexiones_completadas}/${e.conexiones_totales} rutas trazadas con ${e.algoritmo}`);
     } catch (err) { avisar(err.message, true); }
+  });
+
+  // borrar todo: limpia componentes, conexiones y rutas (conserva la placa)
+  $("btnBorrarTodo").addEventListener("click", async () => {
+    if (!confirm("¿Borrar todos los componentes, conexiones y rutas trazadas?")) return;
+    try {
+      const proyecto = await API.limpiarProyecto();
+      Lienzo.setRutas([]);
+      aplicarProyecto(proyecto);
+      avisar("Todo borrado");
+    } catch (e) { avisar(e.message, true); }
+  });
+
+  // ver PCB: alterna el lienzo entre vista esquematica y vista de placa real
+  $("btnVerPCB").addEventListener("click", () => {
+    const enPCB = Lienzo.toggleModoPCB();
+    $("btnVerPCB").textContent = enPCB ? "Ver esquema" : "Ver PCB";
+    $("btnVerPCB").classList.toggle("activo", enPCB);
   });
 
   // historial
@@ -256,9 +275,11 @@ document.addEventListener("DOMContentLoaded", () => {
   $("btnExportJson").addEventListener("click", () => descargar(API.urlExportJson()));
   $("btnExportImg").addEventListener("click", () => {
     const oscuro = document.documentElement.getAttribute("data-tema") === "oscuro";
-    descargar(API.urlExportImagen(oscuro));
+    // Si estamos viendo el PCB, la imagen tambien sale como placa real
+    descargar(API.urlExportImagen(oscuro, Lienzo.esModoPCB()));
   });
-  $("btnExportPdf").addEventListener("click", () => descargar(API.urlExportPdf()));
+  $("btnExportPdf").addEventListener("click", () =>
+    descargar(API.urlExportPdf(Lienzo.esModoPCB())));
 
   // nombre del proyecto
   $("nombreProyecto").addEventListener("click", () => {

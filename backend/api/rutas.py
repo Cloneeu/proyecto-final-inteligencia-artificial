@@ -87,6 +87,7 @@ def trazar(peticion: PeticionRuteo):
         conexiones=estado.conexiones,
         algoritmo=peticion.algoritmo,
         evitar_pistas=peticion.evitar_pistas,
+        permitir_diagonales=peticion.permitir_diagonales,
     )
     _ultimo_ruteo = resultado
     return resultado
@@ -116,6 +117,15 @@ def obtener_proyecto():
 def cargar_proyecto(proyecto: Proyecto):
     estado.cargar_proyecto(proyecto)
     return {"mensaje": "Proyecto cargado", "proyecto": estado.exportar_proyecto()}
+
+
+@router.post("/project/clear")
+def borrar_todo():
+    """Borra componentes, conexiones y el ultimo ruteo. Conserva la placa."""
+    global _ultimo_ruteo
+    estado.limpiar()
+    _ultimo_ruteo = {"resultados": [], "estadisticas": {}, "advertencias": []}
+    return estado.exportar_proyecto()
 
 
 @router.post("/project/rename")
@@ -183,13 +193,14 @@ def exportar_csv():
 
 
 @router.get("/export/image")
-def exportar_imagen(modo_oscuro: bool = True):
+def exportar_imagen(modo_oscuro: bool = True, modo_pcb: bool = False):
     png = exportacion.generar_imagen(
         filas=estado.placa.filas, columnas=estado.placa.columnas,
         tamano_celda=estado.placa.tamano_celda,
         componentes=estado.componentes,
         resultados_ruta=_ultimo_ruteo["resultados"],
         modo_oscuro=modo_oscuro,
+        modo_pcb=modo_pcb,
     )
     return Response(
         content=png, media_type="image/png",
@@ -199,13 +210,14 @@ def exportar_imagen(modo_oscuro: bool = True):
 
 
 @router.get("/export/pdf")
-def exportar_pdf():
+def exportar_pdf(modo_pcb: bool = False):
     png = exportacion.generar_imagen(
         filas=estado.placa.filas, columnas=estado.placa.columnas,
         tamano_celda=estado.placa.tamano_celda,
         componentes=estado.componentes,
         resultados_ruta=_ultimo_ruteo["resultados"],
         modo_oscuro=False,
+        modo_pcb=modo_pcb,
     )
     pdf = exportacion.generar_pdf(
         nombre_proyecto=estado.nombre,

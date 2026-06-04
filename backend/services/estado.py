@@ -122,5 +122,15 @@ class EstadoProyecto:
         self.conexiones = list(proyecto.conexiones)
         self._guardar_instantanea()
 
+    def limpiar(self) -> None:
+        """
+        Borra todos los componentes y conexiones, pero conserva el tamano de
+        la placa y el nombre. Queda registrado en el historial, asi que se
+        puede revertir con Deshacer.
+        """
+        self.componentes = []
+        self.conexiones = []
+        self._guardar_instantanea()
+
 
 estado = EstadoProyecto()

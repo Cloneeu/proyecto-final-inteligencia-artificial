@@ -6,6 +6,7 @@ const Lienzo = (() => {
   let componentes = [];
   let rutas = [];            // resultados del ultimo ruteo
   let temaOscuro = true;
+  let modoPCB = false;       // false = vista esquematica, true = vista placa real
 
   // Transformacion de vista
   let escala = 1;
@@ -61,29 +62,37 @@ const Lienzo = (() => {
     ctx.fillStyle = c.fondo;
     ctx.fillRect(0, 0, w, h);
 
-    // Cuadricula
-    ctx.lineWidth = 1;
-    for (let col = 0; col <= placa.columnas; col++) {
-      const x = offsetX + col * tc;
-      if (x < -tc || x > w + tc) continue;
-      ctx.strokeStyle = (col % 5 === 0) ? c.gridMayor : c.grid;
-      ctx.beginPath();
-      ctx.moveTo(x, offsetY);
-      ctx.lineTo(x, offsetY + placa.filas * tc);
-      ctx.stroke();
-    }
-    for (let fila = 0; fila <= placa.filas; fila++) {
-      const y = offsetY + fila * tc;
-      if (y < -tc || y > h + tc) continue;
-      ctx.strokeStyle = (fila % 5 === 0) ? c.gridMayor : c.grid;
-      ctx.beginPath();
-      ctx.moveTo(offsetX, y);
-      ctx.lineTo(offsetX + placa.columnas * tc, y);
-      ctx.stroke();
+    // En modo PCB pintamos el area de la placa como mascara de soldadura verde
+    if (modoPCB) {
+      ctx.fillStyle = "#0b6e3d";
+      ctx.fillRect(offsetX, offsetY, placa.columnas * tc, placa.filas * tc);
     }
 
-    // Animacion de nodos explorados (se dibuja debajo de las pistas finales)
-    if (animacion) {
+    // Cuadricula (se oculta en modo PCB para que la placa se vea limpia)
+    if (!modoPCB) {
+      ctx.lineWidth = 1;
+      for (let col = 0; col <= placa.columnas; col++) {
+        const x = offsetX + col * tc;
+        if (x < -tc || x > w + tc) continue;
+        ctx.strokeStyle = (col % 5 === 0) ? c.gridMayor : c.grid;
+        ctx.beginPath();
+        ctx.moveTo(x, offsetY);
+        ctx.lineTo(x, offsetY + placa.filas * tc);
+        ctx.stroke();
+      }
+      for (let fila = 0; fila <= placa.filas; fila++) {
+        const y = offsetY + fila * tc;
+        if (y < -tc || y > h + tc) continue;
+        ctx.strokeStyle = (fila % 5 === 0) ? c.gridMayor : c.grid;
+        ctx.beginPath();
+        ctx.moveTo(offsetX, y);
+        ctx.lineTo(offsetX + placa.columnas * tc, y);
+        ctx.stroke();
+      }
+    }
+
+    // Animacion de nodos explorados (solo en vista esquematica)
+    if (animacion && !modoPCB) {
       ctx.fillStyle = temaOscuro ? "rgba(59,130,246,0.25)" : "rgba(37,99,235,0.18)";
       const limite = animacion.indice;
       for (let i = 0; i < limite && i < animacion.nodos.length; i++) {
@@ -92,11 +101,16 @@ const Lienzo = (() => {
       }
     }
 
-    // Pistas trazadas
+    // Pistas trazadas. En modo PCB se ven como cobre (una sola capa).
     rutas.forEach((r) => {
       if (!r.exito || !r.camino || r.camino.length < 2) return;
-      ctx.strokeStyle = r.color || "#22c55e";
-      ctx.lineWidth = Math.max(2, tc * 0.18);
+      if (modoPCB) {
+        ctx.strokeStyle = "#d9a441";       // color cobre/dorado
+        ctx.lineWidth = Math.max(3, tc * 0.3);
+      } else {
+        ctx.strokeStyle = r.color || "#22c55e";
+        ctx.lineWidth = Math.max(2, tc * 0.18);
+      }
       ctx.lineJoin = "round";
       ctx.lineCap = "round";
       ctx.beginPath();
@@ -109,29 +123,226 @@ const Lienzo = (() => {
       ctx.stroke();
     });
 
-    // Componentes
+    // Componentes: simbolo electronico en esquematico, footprint en modo PCB
     componentes.forEach((comp) => {
       const x = offsetX + comp.x * tc;
       const y = offsetY + comp.y * tc;
       const cw = (comp.ancho || 1) * tc;
       const ch = (comp.alto || 1) * tc;
-      ctx.fillStyle = comp.color || "#3b82f6";
-      ctx.strokeStyle = temaOscuro ? "#ffffff" : "#1f2933";
-      ctx.lineWidth = 1.5;
-      // Rectangulo redondeado
-      const r = Math.min(4, tc * 0.2);
-      ctx.beginPath();
-      ctx.roundRect(x + 1, y + 1, cw - 2, ch - 2, r);
-      ctx.fill();
-      ctx.stroke();
-      // Etiqueta con el ID si hay espacio
-      if (tc > 14) {
-        ctx.fillStyle = "#ffffff";
-        ctx.font = `${Math.max(9, tc * 0.42)}px Segoe UI, sans-serif`;
-        ctx.textBaseline = "top";
-        ctx.fillText(comp.id, x + 3, y + 3);
+      if (modoPCB) {
+        dibujarFootprint(x, y, cw, ch, tc, comp);
+      } else {
+        dibujarSimbolo(comp.tipo, x, y, cw, ch, tc, comp);
       }
     });
+  }
+
+  // ------------------------------------------------------------------
+  // Dibujo de simbolos electronicos (vista esquematica)
+  // ------------------------------------------------------------------
+
+  // Escribe el ID del componente si hay espacio suficiente
+  function dibujarEtiqueta(texto, x, y, tc) {
+    if (tc <= 14) return;
+    ctx.fillStyle = temaOscuro ? "#e5e7eb" : "#1f2933";
+    ctx.font = `${Math.max(9, tc * 0.4)}px Segoe UI, sans-serif`;
+    ctx.textBaseline = "top";
+    ctx.fillText(texto, x + 3, y + 3);
+  }
+
+  // Elige el simbolo segun el tipo del componente
+  function dibujarSimbolo(tipo, x, y, w, h, tc, comp) {
+    const color = comp.color || "#3b82f6";
+    ctx.lineWidth = Math.max(1.5, tc * 0.12);
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+
+    switch (tipo) {
+      case "resistencia": dibujarResistencia(x, y, w, h, color); break;
+      case "capacitor":   dibujarCapacitor(x, y, w, h, color); break;
+      case "led":         dibujarDiodo(x, y, w, h, color, true); break;
+      case "diodo":       dibujarDiodo(x, y, w, h, color, false); break;
+      case "transistor":  dibujarTransistor(x, y, w, h, color); break;
+      case "conector":    dibujarConector(x, y, w, h, color); break;
+      case "microcontrolador":
+      case "integrado":   dibujarChip(x, y, w, h, color); break;
+      default:            dibujarGenerico(x, y, w, h, color); break;
+    }
+    dibujarEtiqueta(comp.id, x, y, tc);
+  }
+
+  // Resistencia: zigzag horizontal con dos terminales
+  function dibujarResistencia(x, y, w, h, color) {
+    ctx.strokeStyle = color;
+    const cy = y + h / 2;
+    const x0 = x + w * 0.18, x1 = x + w * 0.82;
+    const ancho = x1 - x0;
+    const amp = h * 0.22;
+    const picos = 6;
+    ctx.beginPath();
+    ctx.moveTo(x, cy);          // terminal izquierdo
+    ctx.lineTo(x0, cy);
+    for (let i = 0; i < picos; i++) {
+      const px = x0 + ancho * (i + 0.5) / picos;
+      const py = cy + (i % 2 === 0 ? -amp : amp);
+      ctx.lineTo(px, py);
+    }
+    ctx.lineTo(x1, cy);
+    ctx.lineTo(x + w, cy);      // terminal derecho
+    ctx.stroke();
+  }
+
+  // Capacitor: dos placas paralelas con terminales
+  function dibujarCapacitor(x, y, w, h, color) {
+    ctx.strokeStyle = color;
+    const cy = y + h / 2;
+    const gap = w * 0.1;
+    const xa = x + w / 2 - gap, xb = x + w / 2 + gap;
+    const mitad = h * 0.3;   // media altura de cada placa
+    ctx.beginPath();
+    ctx.moveTo(x, cy); ctx.lineTo(xa, cy);          // terminal izquierdo
+    ctx.moveTo(xb, cy); ctx.lineTo(x + w, cy);      // terminal derecho
+    ctx.moveTo(xa, cy - mitad); ctx.lineTo(xa, cy + mitad);  // placa izquierda
+    ctx.moveTo(xb, cy - mitad); ctx.lineTo(xb, cy + mitad);  // placa derecha
+    ctx.stroke();
+  }
+
+  // Diodo/LED: triangulo + barra de catodo. Si es LED, agrega flechas de luz.
+  function dibujarDiodo(x, y, w, h, color, esLed) {
+    ctx.strokeStyle = color;
+    const cy = y + h / 2;
+    const tx0 = x + w * 0.32, tx1 = x + w * 0.64;
+    const th = h * 0.28;
+    // terminales
+    ctx.beginPath();
+    ctx.moveTo(x, cy); ctx.lineTo(tx0, cy);
+    ctx.moveTo(tx1, cy); ctx.lineTo(x + w, cy);
+    ctx.stroke();
+    // triangulo apuntando a la derecha
+    ctx.beginPath();
+    ctx.moveTo(tx0, cy - th);
+    ctx.lineTo(tx0, cy + th);
+    ctx.lineTo(tx1, cy);
+    ctx.closePath();
+    ctx.stroke();
+    // barra del catodo
+    ctx.beginPath();
+    ctx.moveTo(tx1, cy - th); ctx.lineTo(tx1, cy + th);
+    ctx.stroke();
+    // flechas que indican luz (solo LED)
+    if (esLed) {
+      const ax = x + w * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(ax, cy - th); ctx.lineTo(ax + w * 0.12, cy - th - h * 0.24);
+      ctx.moveTo(ax + w * 0.14, cy - th); ctx.lineTo(ax + w * 0.26, cy - th - h * 0.24);
+      ctx.stroke();
+    }
+  }
+
+  // Transistor: circulo con base, colector y emisor
+  function dibujarTransistor(x, y, w, h, color) {
+    ctx.strokeStyle = color;
+    const cx = x + w / 2, cy = y + h / 2;
+    const r = Math.min(w, h) * 0.32;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+    const bx = cx - r * 0.35;
+    ctx.beginPath();
+    ctx.moveTo(x, cy); ctx.lineTo(bx, cy);                 // base
+    ctx.moveTo(bx, cy - r * 0.6); ctx.lineTo(bx, cy + r * 0.6);
+    ctx.moveTo(bx, cy - r * 0.25); ctx.lineTo(cx + r * 0.5, cy - r * 0.6);
+    ctx.lineTo(cx + r * 0.5, y);                           // colector
+    ctx.moveTo(bx, cy + r * 0.25); ctx.lineTo(cx + r * 0.5, cy + r * 0.6);
+    ctx.lineTo(cx + r * 0.5, y + h);                       // emisor
+    ctx.stroke();
+  }
+
+  // Microcontrolador / integrado: cuerpo con patitas y punto del pin 1
+  function dibujarChip(x, y, w, h, color) {
+    const m = Math.min(w, h) * 0.18;
+    const bx = x + m, by = y + m, bw = w - 2 * m, bh = h - 2 * m;
+    // cuerpo del chip
+    ctx.fillStyle = temaOscuro ? "#374151" : "#475569";
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    ctx.rect(bx, by, bw, bh);
+    ctx.fill();
+    ctx.stroke();
+    // patitas a izquierda y derecha
+    ctx.strokeStyle = temaOscuro ? "#cbd5e1" : "#334155";
+    const pines = Math.max(2, Math.floor(bh / (m * 1.4)));
+    ctx.beginPath();
+    for (let i = 0; i < pines; i++) {
+      const py = by + bh * (i + 0.5) / pines;
+      ctx.moveTo(x, py); ctx.lineTo(bx, py);
+      ctx.moveTo(bx + bw, py); ctx.lineTo(x + w, py);
+    }
+    ctx.stroke();
+    // punto indicador del pin 1
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(bx + m * 0.7, by + m * 0.7, Math.max(1.5, m * 0.28), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Conector: cuerpo con una fila de pines
+  function dibujarConector(x, y, w, h, color) {
+    const m = Math.min(w, h) * 0.18;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = temaOscuro ? "#1f2933" : "#e5e7eb";
+    ctx.beginPath();
+    ctx.rect(x + m, y + m, w - 2 * m, h - 2 * m);
+    ctx.fill();
+    ctx.stroke();
+    const ancho = w - 2 * m;
+    const pines = Math.max(2, Math.floor(ancho / (m * 1.6)));
+    const cy = y + h / 2;
+    ctx.fillStyle = color;
+    for (let i = 0; i < pines; i++) {
+      const px = x + m + ancho * (i + 0.5) / pines;
+      ctx.beginPath();
+      ctx.arc(px, cy, Math.max(1.5, m * 0.3), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Generico ("otro"): el rectangulo redondeado de color de siempre
+  function dibujarGenerico(x, y, w, h, color) {
+    ctx.fillStyle = color;
+    ctx.strokeStyle = temaOscuro ? "#ffffff" : "#1f2933";
+    const r = Math.min(4, Math.min(w, h) * 0.2);
+    ctx.beginPath();
+    ctx.roundRect(x + 1, y + 1, w - 2, h - 2, r);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // Footprint para la vista PCB: pads de cobre y contorno de serigrafia
+  function dibujarFootprint(x, y, w, h, tc, comp) {
+    // contorno blanco de serigrafia
+    ctx.strokeStyle = "#e8eef2";
+    ctx.lineWidth = Math.max(1, tc * 0.08);
+    ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+    // un pad dorado por cada celda que ocupa el componente
+    const ancho = comp.ancho || 1, alto = comp.alto || 1;
+    ctx.fillStyle = "#d9a441";
+    for (let fila = 0; fila < alto; fila++) {
+      for (let col = 0; col < ancho; col++) {
+        const px = x + col * tc + tc / 2;
+        const py = y + fila * tc + tc / 2;
+        ctx.beginPath();
+        ctx.arc(px, py, Math.max(2, tc * 0.28), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    // etiqueta de serigrafia en blanco
+    if (tc > 14) {
+      ctx.fillStyle = "#e8eef2";
+      ctx.font = `${Math.max(9, tc * 0.4)}px Segoe UI, sans-serif`;
+      ctx.textBaseline = "top";
+      ctx.fillText(comp.id, x + 3, y + 3);
+    }
   }
 
   // Anima la exploracion de nodos antes de mostrar la ruta final
@@ -236,6 +447,10 @@ const Lienzo = (() => {
     setComponentes: (c) => { componentes = c; },
     setRutas: (r) => { rutas = r; },
     setTema: (oscuro) => { temaOscuro = oscuro; dibujar(); },
+    // Alterna entre vista esquematica y vista PCB; devuelve el estado nuevo
+    toggleModoPCB: () => { modoPCB = !modoPCB; dibujar(); return modoPCB; },
+    setModoPCB: (v) => { modoPCB = v; dibujar(); },
+    esModoPCB: () => modoPCB,
     dibujar,
     ajustar,
     animarExploracion,

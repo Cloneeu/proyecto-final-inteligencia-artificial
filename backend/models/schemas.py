@@ -50,6 +50,10 @@ class PeticionRuteo(BaseModel):
         default=True,
         description="Si es True, las pistas ya trazadas se tratan como obstaculos"
     )
+    permitir_diagonales: bool = Field(
+        default=False,
+        description="Si es True, el trazado puede moverse en diagonal (45 grados)"
+    )
 
 
 class ResultadoRuta(BaseModel):

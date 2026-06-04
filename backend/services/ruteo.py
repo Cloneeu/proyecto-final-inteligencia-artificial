@@ -58,8 +58,9 @@ def trazar_conexiones(filas: int, columnas: int,
                       componentes: List[Componente],
                       conexiones: List[Conexion],
                       algoritmo: str = "astar",
-                      evitar_pistas: bool = True) -> Dict:
-   
+                      evitar_pistas: bool = True,
+                      permitir_diagonales: bool = False) -> Dict:
+
     grid = construir_cuadricula(filas, columnas, componentes)
     indice = {c.id: c for c in componentes}
 
@@ -97,7 +98,8 @@ def trazar_conexiones(filas: int, columnas: int,
             respaldo[(cx, cy)] = grid.celdas[cy][cx]
             grid.celdas[cy][cx] = 0
 
-        res = resolver(algoritmo, grid, inicio, fin, evitar_pistas)
+        res = resolver(algoritmo, grid, inicio, fin, evitar_pistas,
+                       permitir_diagonales)
 
         # Restauramos los valores originales de las celdas liberadas
         for (cx, cy), valor in respaldo.items():

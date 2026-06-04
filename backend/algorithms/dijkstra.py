@@ -21,7 +21,8 @@ def reconstruir_camino(origen_de: Dict, actual: Tuple[int, int]
 def buscar(cuadricula: Cuadricula,
            inicio: Tuple[int, int],
            destino: Tuple[int, int],
-           evitar_pistas: bool = True) -> dict:
+           evitar_pistas: bool = True,
+           permitir_diagonales: bool = False) -> dict:
     """Ejecuta Dijkstra y devuelve el mismo formato de resultado que A*."""
     t0 = time.perf_counter()
 
@@ -30,7 +31,7 @@ def buscar(cuadricula: Cuadricula,
     heapq.heappush(cola, (0, contador, inicio))
 
     origen_de: Dict[Tuple[int, int], Tuple[int, int]] = {}
-    coste_g: Dict[Tuple[int, int], int] = {inicio: 0}
+    coste_g: Dict[Tuple[int, int], float] = {inicio: 0}
     nodos_explorados = 0
 
     while cola:
@@ -49,8 +50,10 @@ def buscar(cuadricula: Cuadricula,
                 "mensaje": "Ruta encontrada con Dijkstra",
             }
 
-        for vecino in cuadricula.vecinos(actual[0], actual[1], evitar_pistas):
-            nuevo_g = coste_g[actual] + 1
+        for nx, ny, coste in cuadricula.vecinos(
+                actual[0], actual[1], evitar_pistas, permitir_diagonales):
+            vecino = (nx, ny)
+            nuevo_g = coste_g[actual] + coste
             if vecino not in coste_g or nuevo_g < coste_g[vecino]:
                 coste_g[vecino] = nuevo_g
                 contador += 1

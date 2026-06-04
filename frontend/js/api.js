@@ -52,6 +52,7 @@ const API = (() => {
     obtenerProyecto: () => pedir("/project"),
     renombrar: (nombre) =>
       pedir("/project/rename", { method: "POST", body: JSON.stringify({ nombre }) }),
+    limpiarProyecto: () => pedir("/project/clear", { method: "POST" }),
 
     // Importacion: usa FormData en lugar de JSON
     importar: async (archivo) => {
@@ -68,7 +69,9 @@ const API = (() => {
     // Las exportaciones devuelven archivos: construimos URLs de descarga directa
     urlExportJson: () => BASE + "/export/json",
     urlExportCsv: () => BASE + "/export/csv",
-    urlExportImagen: (oscuro) => BASE + "/export/image?modo_oscuro=" + (oscuro ? "true" : "false"),
-    urlExportPdf: () => BASE + "/export/pdf",
+    urlExportImagen: (oscuro, pcb) =>
+      BASE + "/export/image?modo_oscuro=" + (oscuro ? "true" : "false") +
+      "&modo_pcb=" + (pcb ? "true" : "false"),
+    urlExportPdf: (pcb) => BASE + "/export/pdf?modo_pcb=" + (pcb ? "true" : "false"),
   };
 })();

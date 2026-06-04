@@ -25,6 +25,8 @@
       <button class="btn" id="btnExportJson">JSON</button>
       <button class="btn" id="btnExportImg">PNG</button>
       <button class="btn" id="btnExportPdf">PDF</button>
+      <button class="btn" id="btnVerPCB" title="Ver el diseno como una placa real">Ver PCB</button>
+      <button class="btn" id="btnBorrarTodo" title="Borrar componentes, conexiones y rutas">Borrar todo</button>
       <button class="btn btn-primario" id="btnRutear">Trazar rutas</button>
       <button class="btn btn-icono" id="btnTema" title="Cambiar tema">&#9728;</button>
 
@@ -87,6 +89,10 @@
           <label style="font-size:12px;color:var(--texto-suave);display:flex;gap:6px;align-items:center">
             <input type="checkbox" id="chkEvitarPistas" checked style="width:auto">
             Evitar cruces de pistas
+          </label>
+          <label style="font-size:12px;color:var(--texto-suave);display:flex;gap:6px;align-items:center;margin-top:6px">
+            <input type="checkbox" id="chkDiagonales" style="width:auto">
+            Permitir 45&deg; (diagonales)
           </label>
         </div>
 

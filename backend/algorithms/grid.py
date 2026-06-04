@@ -68,18 +68,42 @@ class Cuadricula:
     # ------------------------------------------------------------------
     # Vecinos
     # ------------------------------------------------------------------
-    def vecinos(self, x: int, y: int, evitar_pistas: bool = True
-                ) -> Iterator[Tuple[int, int]]:
+    def vecinos(self, x: int, y: int, evitar_pistas: bool = True,
+                permitir_diagonales: bool = False
+                ) -> Iterator[Tuple[int, int, float]]:
         """
-        Devuelve las celdas vecinas transitables.
-        Se usa movimiento ortogonal (arriba, abajo, izquierda, derecha)
-        porque en PCB las pistas suelen trazarse en angulos rectos.
+        Devuelve las celdas vecinas transitables junto con el coste del paso.
+        Cada elemento es (columna, fila, coste).
+
+        Por defecto se usa movimiento ortogonal (arriba, abajo, izquierda,
+        derecha) con coste 1, porque en PCB las pistas suelen trazarse en
+        angulos rectos. Si `permitir_diagonales` es True, tambien se permiten
+        los movimientos a 45 grados con coste raiz de 2 (la distancia real de
+        una diagonal).
         """
-        movimientos = [(0, -1), (0, 1), (-1, 0), (1, 0)]
-        for dx, dy in movimientos:
+        # Movimientos ortogonales: coste 1
+        ortogonales = [(0, -1), (0, 1), (-1, 0), (1, 0)]
+        for dx, dy in ortogonales:
             nx, ny = x + dx, y + dy
             if self.es_transitable(nx, ny, evitar_pistas):
-                yield nx, ny
+                yield nx, ny, 1.0
+
+        if not permitir_diagonales:
+            return
+
+        # Movimientos diagonales (45 grados): coste raiz de 2
+        diagonales = [(-1, -1), (1, -1), (-1, 1), (1, 1)]
+        for dx, dy in diagonales:
+            nx, ny = x + dx, y + dy
+            if not self.es_transitable(nx, ny, evitar_pistas):
+                continue
+            # Evitamos "cortar esquinas": la diagonal solo vale si al menos una
+            # de las dos celdas ortogonales contiguas esta libre. Asi la pista
+            # no atraviesa la esquina de un componente.
+            libre_h = self.es_transitable(x + dx, y, evitar_pistas)
+            libre_v = self.es_transitable(x, y + dy, evitar_pistas)
+            if libre_h or libre_v:
+                yield nx, ny, 1.4142135623730951
 
     def clonar_estado(self) -> List[List[int]]:
         """Devuelve una copia de la matriz, util para depuracion o exportacion."""

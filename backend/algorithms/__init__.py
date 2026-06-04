@@ -22,7 +22,8 @@ def algoritmos_disponibles():
     return list(_ALGORITMOS.keys())
 
 
-def resolver(nombre: str, cuadricula, inicio, destino, evitar_pistas=True):
+def resolver(nombre: str, cuadricula, inicio, destino, evitar_pistas=True,
+             permitir_diagonales=False):
     """
     Ejecuta el algoritmo indicado.
 
@@ -34,4 +35,5 @@ def resolver(nombre: str, cuadricula, inicio, destino, evitar_pistas=True):
             f"Algoritmo desconocido '{nombre}'. "
             f"Use uno de: {', '.join(_ALGORITMOS.keys())}"
         )
-    return _ALGORITMOS[clave].buscar(cuadricula, inicio, destino, evitar_pistas)
+    return _ALGORITMOS[clave].buscar(
+        cuadricula, inicio, destino, evitar_pistas, permitir_diagonales)

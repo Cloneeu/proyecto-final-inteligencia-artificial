@@ -145,6 +145,12 @@ input:focus, select:focus {
 }
 .btn-primario:hover { background: var(--acento-hover); }
 .btn-icono { padding: 7px 9px; }
+/* Boton resaltado cuando un modo esta activo (por ejemplo "Ver PCB") */
+.btn.activo {
+  background: var(--acento);
+  color: #fff;
+  border-color: var(--acento);
+}
 
 /* Cuerpo: tres columnas */
 .cuerpo {

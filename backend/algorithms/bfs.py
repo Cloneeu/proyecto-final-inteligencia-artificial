@@ -21,8 +21,15 @@ def reconstruir_camino(origen_de: Dict, actual: Tuple[int, int]
 def buscar(cuadricula: Cuadricula,
            inicio: Tuple[int, int],
            destino: Tuple[int, int],
-           evitar_pistas: bool = True) -> dict:
-    """Ejecuta BFS y devuelve el mismo formato de resultado que A* y Dijkstra."""
+           evitar_pistas: bool = True,
+           permitir_diagonales: bool = False) -> dict:
+    """
+    Ejecuta BFS y devuelve el mismo formato de resultado que A* y Dijkstra.
+
+    Nota: BFS trata cada vecino como un solo paso. Con diagonales activadas
+    minimiza el numero de pasos, no la longitud real de la pista, por lo que
+    puede dar un camino algo mas largo que A* o Dijkstra.
+    """
     t0 = time.perf_counter()
 
     cola = deque([inicio])
@@ -46,7 +53,9 @@ def buscar(cuadricula: Cuadricula,
                 "mensaje": "Ruta encontrada con BFS",
             }
 
-        for vecino in cuadricula.vecinos(actual[0], actual[1], evitar_pistas):
+        for nx, ny, _coste in cuadricula.vecinos(
+                actual[0], actual[1], evitar_pistas, permitir_diagonales):
+            vecino = (nx, ny)
             if vecino not in visitados:
                 visitados.add(vecino)
                 origen_de[vecino] = actual
